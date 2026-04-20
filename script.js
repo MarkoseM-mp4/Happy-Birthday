@@ -1183,17 +1183,14 @@ function flyUp() {
   hintEl?.classList.add('hidden');
   controls.enabled = false;
 
-  const isMobile = window.innerWidth < window.innerHeight;
-  const dist = isMobile ? 3.8 : 3.0; // Push further back on narrow screens
-  const lift = isMobile ? -1.0 : -0.8;
-
+  const targetPos = new THREE.Vector3();
   camera.getWorldDirection(targetPos);
-  targetPos.multiplyScalar(dist);
+  targetPos.multiplyScalar(3.0);
   targetPos.add(camera.position);
 
   const camUp = new THREE.Vector3();
   camUp.copy(camera.up).applyQuaternion(camera.quaternion).normalize();
-  targetPos.addScaledVector(camUp, lift);
+  targetPos.addScaledVector(camUp, -0.8);
 
   const targetRot = new THREE.Euler(camera.rotation.x, camera.rotation.y, camera.rotation.z);
   const targetScale = gameboyMesh.scale.clone().multiplyScalar(6.25);
@@ -1452,10 +1449,7 @@ function flyUpNewBook() {
 
   const targetRot = camera.rotation.clone();
   newBookDefaultQuat.setFromEuler(targetRot);
-  
-  const isMobile = window.innerWidth < window.innerHeight;
-  const scaleMult = isMobile ? 0.6 : 1.2;
-  const targetScale = newBookMesh.scale.clone().multiplyScalar(scaleMult);
+  const targetScale = newBookMesh.scale.clone().multiplyScalar(1.2);
   setOverlayMode(newBookMesh, true);
 
   animateTransform(newBookMesh, targetPos, targetRot, targetScale, 1200, () => {
@@ -2013,17 +2007,7 @@ animate();
 
 // ─── Resize ──────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  camera.aspect = width / height;
-  
-  // Adjust FOV for mobile portrait to see the whole table
-  if (width < height) {
-    camera.fov = 60; // Wider view for vertical screens
-  } else {
-    camera.fov = 45; // Standard view for landscape
-  }
-  
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(width, height);
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
