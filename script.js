@@ -1452,7 +1452,10 @@ function flyUpNewBook() {
 
   const targetRot = camera.rotation.clone();
   newBookDefaultQuat.setFromEuler(targetRot);
-  const targetScale = newBookMesh.scale.clone().multiplyScalar(1.2);
+  
+  const isMobile = window.innerWidth < window.innerHeight;
+  const scaleMult = isMobile ? 0.6 : 1.2;
+  const targetScale = newBookMesh.scale.clone().multiplyScalar(scaleMult);
   setOverlayMode(newBookMesh, true);
 
   animateTransform(newBookMesh, targetPos, targetRot, targetScale, 1200, () => {
