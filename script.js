@@ -203,6 +203,33 @@ let newBookDefaultQuat = new THREE.Quaternion();
 
 let vaseDefaultQuat  = new THREE.Quaternion();
 
+// ─── Audio ────────────────────────────────────────────────────────
+const audioListener = new THREE.AudioListener();
+camera.add(audioListener);
+const bgMusic = new THREE.Audio(audioListener);
+const audioLoader = new THREE.AudioLoader();
+let musicStarted = false;
+
+audioLoader.load('beabadoobee - Glue Song (Official Music Video) - beabadoobeeVEVO.mp3', (buffer) => {
+  bgMusic.setBuffer(buffer);
+  bgMusic.setLoop(true);
+  bgMusic.setVolume(0); 
+});
+
+function startMusic() {
+  if (musicStarted || !bgMusic.buffer) return;
+  musicStarted = true;
+  bgMusic.play();
+  
+  // Fade in
+  let vol = 0;
+  const fadeIn = setInterval(() => {
+    vol += 0.02;
+    bgMusic.setVolume(vol);
+    if (vol >= 0.5) clearInterval(fadeIn); // Max volume 0.5 for background comfort
+  }, 50);
+}
+
 // ─── Screen corner points in GB local space ───────────────────────
 // GB local bounds: min(-0.559, -0.744, -0.188) max(0.559, 1.189, 0.286)
 // The screen area (the gray/green rectangle) in local coords:
@@ -888,6 +915,7 @@ function onStartPressed() {
 
 // ─── Click handler ───────────────────────────────────────────────
 canvas.addEventListener('click', (e) => {
+  startMusic();
   // Skip clicks that ended a drag (pointerup already cleared frameDragging, so check frameDragEnded)
   if (frameDragEnded || chocoDragEnded || vaseDragEnded || newBookDragEnded) {
     frameDragEnded = false;
