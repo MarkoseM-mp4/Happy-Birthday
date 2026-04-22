@@ -2011,3 +2011,179 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// ─── Camera & Recording Logic ────────────────────────────────────────
+
+const cameraOverlay = document.getElementById('cameraOverlay');
+const cameraMessage = document.getElementById('cameraMessage');
+const cameraFeed = document.getElementById('cameraFeed');
+const surpriseBtn = document.getElementById('surpriseBtn');
+const videoContainer = document.querySelector('.video-container');
+
+const sendVideoModal = document.getElementById('sendVideoModal');
+const sendVideoBtn = document.getElementById('sendVideoBtn');
+const continueBtn = document.getElementById('continueBtn');
+
+let mediaRecorder;
+let recordedChunks = [];
+let isRecording = false;
+let hasSent = false;
+let videoBlob = null;
+let cameraStream = null;
+let screenStream = null;
+
+async function initCamera() {
+  if (!cameraOverlay) return; // If DOM not loaded
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    cameraFeed.srcObject = cameraStream;
+    
+    // Camera is on
+    cameraMessage.textContent = "Camera Activated";
+    videoContainer.classList.add('active');
+    surpriseBtn.style.display = 'inline-block';
+    
+  } catch (err) {
+    console.error("Camera access denied or error:", err);
+    cameraMessage.textContent = "Please allow camera access.";
+    // Try again with just video if audio failed
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      cameraFeed.srcObject = cameraStream;
+      cameraMessage.textContent = "Camera Activated";
+      videoContainer.classList.add('active');
+      surpriseBtn.style.display = 'inline-block';
+    } catch(e2) {
+       console.error("Video only failed too", e2);
+    }
+  }
+}
+
+// Start camera on page load
+initCamera();
+
+if (surpriseBtn) {
+  surpriseBtn.addEventListener('click', async () => {
+    if (!cameraStream) return;
+    
+    try {
+      // Request screen capture with preference for entire screen
+      screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: { displaySurface: 'monitor' }, 
+        audio: true 
+      });
+
+      // Check if it's the entire screen (most modern browsers support this setting)
+      const settings = screenStream.getVideoTracks()[0].getSettings();
+      if (settings.displaySurface && settings.displaySurface !== 'monitor') {
+        // Stop stream and tell user it must be the entire screen
+        screenStream.getTracks().forEach(track => track.stop());
+        cameraMessage.textContent = "Please select 'Entire Screen' to proceed.";
+        return;
+      }
+      
+      // Transform camera to top-left PiP overlay
+      cameraOverlay.classList.add('recording');
+      videoContainer.classList.add('top-left');
+      
+      // Combine screen video & audio + camera audio
+      const tracks = [
+        ...screenStream.getVideoTracks(),
+        ...screenStream.getAudioTracks(),
+        ...cameraStream.getAudioTracks()
+      ];
+      
+      const mergedStream = new MediaStream(tracks);
+      
+      mediaRecorder = new MediaRecorder(mergedStream);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunks.push(event.data);
+        }
+      };
+      mediaRecorder.onstop = () => {
+        videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+      };
+      mediaRecorder.start();
+      isRecording = true;
+
+      // Handle if user stops sharing from browser UI
+      screenStream.getVideoTracks()[0].onended = () => {
+        if (isRecording && !hasSent) {
+          promptSendVideo();
+        }
+      };
+
+    } catch (e) {
+      console.error("Screen recording setup failed:", e);
+      cameraMessage.textContent = "Screen sharing is required to proceed.";
+    }
+  });
+}
+
+// Detect user trying to leave
+document.addEventListener('mouseleave', (e) => {
+  if (e.clientY <= 0 && isRecording && !hasSent) {
+    promptSendVideo();
+  }
+});
+
+// Setup beforeunload
+window.addEventListener('beforeunload', (e) => {
+  if (isRecording && !hasSent) {
+    promptSendVideo(); // Try to show modal (browser may block UI updates here, but it triggers recording stop)
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
+
+function promptSendVideo() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  if (sendVideoModal) {
+    sendVideoModal.classList.add('visible');
+  }
+}
+
+if (continueBtn) {
+  continueBtn.addEventListener('click', () => {
+    sendVideoModal.classList.remove('visible');
+  });
+}
+
+if (sendVideoBtn) {
+  sendVideoBtn.addEventListener('click', () => {
+    if (!videoBlob && recordedChunks.length > 0) {
+      videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+    }
+    
+    if (videoBlob) {
+      // Download the video
+      const url = URL.createObjectURL(videoBlob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'surprise_video.webm';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    }
+    
+    hasSent = true;
+    sendVideoModal.classList.remove('visible');
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+    }
+    videoContainer.classList.remove('top-left');
+    cameraOverlay.classList.remove('recording');
+    cameraOverlay.classList.add('hidden');
+  });
+}

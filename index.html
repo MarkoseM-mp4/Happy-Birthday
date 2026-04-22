@@ -12,6 +12,29 @@
   <!-- Snake game overlay — positioned over GB screen -->
   <canvas id="gameScreen"></canvas>
 
+  <!-- Camera Overlay -->
+  <div id="cameraOverlay" class="camera-overlay">
+    <div class="camera-content">
+      <h1 id="cameraMessage" class="elegant-title">Turn on your camera</h1>
+      <div class="video-container">
+        <video id="cameraFeed" autoplay playsinline muted></video>
+      </div>
+      <button id="surpriseBtn" class="elegant-btn" style="display: none;">Open Surprise</button>
+    </div>
+  </div>
+
+  <!-- Save Video Modal -->
+  <div id="sendVideoModal" class="save-video-modal">
+    <div class="modal-content">
+      <h2 class="elegant-title">Wait before you go</h2>
+      <p>Save your recording so you don't lose it.</p>
+      <div class="modal-actions">
+        <button id="sendVideoBtn" class="elegant-btn primary">Save Recording</button>
+        <button id="continueBtn" class="elegant-btn secondary">Keep Exploring</button>
+      </div>
+    </div>
+  </div>
+
   <script type="importmap">
   {
     "imports": {
